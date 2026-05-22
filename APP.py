@@ -440,14 +440,3 @@ matplotlib
 wordcloud
 numpy
 ```
-
-# Struktur Repository GitHub
-
-```bash
-Analisis-Sentimen-Saham-BUMI/
-│
-├── app.py
-├── df_clean.csv
-├── requirements.txt
-└── README.md
-```
