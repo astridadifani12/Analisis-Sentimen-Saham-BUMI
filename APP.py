@@ -425,14 +425,3 @@ st.markdown("---")
 st.caption(
     "Dashboard dibuat menggunakan Streamlit • Plotly • NLP 🚀"
 )
-
-# requirements.txt
-
-```txt
-streamlit
-pandas
-plotly
-matplotlib
-wordcloud
-numpy
-```
