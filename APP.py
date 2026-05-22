@@ -426,8 +426,6 @@ st.caption(
     "Dashboard dibuat menggunakan Streamlit • Plotly • NLP 🚀"
 )
 
-```
-
 # requirements.txt
 
 ```txt
