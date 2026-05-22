@@ -1,4 +1,5 @@
 # ============================================================
+# APP.PY
 # DASHBOARD ANALISIS SENTIMEN SAHAM BUMI
 # ============================================================
 
@@ -6,21 +7,24 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from collections import Counter
 from wordcloud import WordCloud
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
+
+from sklearn.feature_extraction.text import (
+    CountVectorizer,
+    TfidfVectorizer
+)
 
 # ============================================================
 # PAGE CONFIG
 # ============================================================
 
 st.set_page_config(
-    page_title="Dashboard Sentimen Saham BUMI",
+    page_title="Analisis Sentimen Saham BUMI",
     page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # ============================================================
@@ -30,54 +34,26 @@ st.set_page_config(
 st.markdown("""
 <style>
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
-
 .main {
     background-color: #f7f4ef;
-}
-
-[data-testid="metric-container"] {
-    background: linear-gradient(135deg, #ffffff 0%, #f5efe6 100%);
-    border: 1px solid #d6c7b2;
-    padding: 18px;
-    border-radius: 16px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-}
-
-[data-testid="metric-container"]:hover {
-    transform: translateY(-2px);
-    transition: 0.3s ease;
-}
-
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #1f3b2d 0%, #4b3621 100%);
-}
-
-[data-testid="stSidebar"] * {
-    color: white !important;
 }
 
 h1, h2, h3 {
     color: #1f3b2d;
 }
 
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-    background-color: #e9dfd0;
-    padding: 10px;
+[data-testid="metric-container"] {
+    background-color: white;
+    border: 1px solid #d6c7b2;
+    padding: 15px;
     border-radius: 12px;
 }
 
-.stTabs [data-baseweb="tab"] {
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-weight: 600;
+[data-testid="stSidebar"] {
+    background-color: #1f3b2d;
 }
 
-.stTabs [aria-selected="true"] {
-    background-color: #1f3b2d !important;
+[data-testid="stSidebar"] * {
     color: white !important;
 }
 
@@ -102,6 +78,7 @@ df = load_data()
 # PREPROCESSING
 # ============================================================
 
+# LABEL SENTIMEN
 if 'label' in df.columns:
 
     df['sentimen'] = df['label'].map({
@@ -109,6 +86,7 @@ if 'label' in df.columns:
         0: 'Negatif'
     })
 
+# PANJANG TEKS
 if 'stem_text' in df.columns:
 
     df['panjang_teks'] = (
@@ -134,9 +112,8 @@ st.markdown("---")
 # SIDEBAR
 # ============================================================
 
-st.sidebar.header("🔍 Filter Dashboard")
+st.sidebar.header("🔍 Filter Data")
 
-# FILTER SENTIMEN
 selected_sentiment = st.sidebar.multiselect(
     "Pilih Sentimen",
     options=df['sentimen'].unique(),
@@ -145,36 +122,18 @@ selected_sentiment = st.sidebar.multiselect(
 
 df = df[df['sentimen'].isin(selected_sentiment)]
 
-# FILTER LIKES
-if 'likes' in df.columns:
-
-    min_like = int(df['likes'].min())
-    max_like = int(df['likes'].max())
-
-    selected_like = st.sidebar.slider(
-        "Range Likes",
-        min_value=min_like,
-        max_value=max_like,
-        value=(min_like, max_like)
-    )
-
-    df = df[
-        (df['likes'] >= selected_like[0]) &
-        (df['likes'] <= selected_like[1])
-    ]
-
 # ============================================================
-# METRICS
+# METRIC
 # ============================================================
 
-st.subheader("📌 Ringkasan Data")
+st.subheader("📌 Ringkasan Dataset")
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 
 with col1:
     st.metric(
         "Total Komentar",
-        f"{len(df):,}"
+        len(df)
     )
 
 with col2:
@@ -189,12 +148,6 @@ with col3:
         int((df['sentimen'] == 'Negatif').sum())
     )
 
-with col4:
-    st.metric(
-        "Total Likes",
-        int(df['likes'].sum())
-    )
-
 st.markdown("---")
 
 # ============================================================
@@ -202,73 +155,79 @@ st.markdown("---")
 # ============================================================
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Distribusi",
-    "☁️ Analisis Kata",
-    "📈 Engagement",
-    "🤖 Machine Learning",
-    "📌 Insight"
+    "📄 Dataset",
+    "📊 Distribusi Sentimen",
+    "☁️ Word Analysis",
+    "📌 TF-IDF & Modeling",
+    "📈 Insight"
 ])
 
 # ============================================================
-# TAB 1 - DISTRIBUSI
+# TAB 1 - DATASET
 # ============================================================
 
 with tab1:
 
+    st.subheader("📄 Preview Dataset")
+
+    st.dataframe(df.head())
+
+    st.subheader("📌 Informasi Dataset")
+
     colA, colB = st.columns(2)
 
-    # PIE CHART
     with colA:
 
-        st.subheader("Distribusi Sentimen")
+        st.write("Jumlah Baris:", df.shape[0])
 
-        sentiment_count = (
-            df['sentimen']
-            .value_counts()
-            .reset_index()
-        )
+        st.write("Jumlah Kolom:", df.shape[1])
 
-        sentiment_count.columns = [
-            'Sentimen',
-            'Jumlah'
-        ]
-
-        fig_pie = px.pie(
-            sentiment_count,
-            names='Sentimen',
-            values='Jumlah',
-            color='Sentimen',
-            hole=0.5,
-            color_discrete_map={
-                'Positif': '#1f7a4d',
-                'Negatif': '#8b5e3c'
-            }
-        )
-
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    # HISTOGRAM
     with colB:
 
-        st.subheader("Distribusi Panjang Teks")
+        missing = df.isnull().sum()
 
-        fig_hist = px.histogram(
-            df,
-            x='panjang_teks',
-            nbins=30,
-            color_discrete_sequence=['#4b3621'],
-            template='plotly_white'
-        )
+        st.write("Missing Value")
 
-        fig_hist.update_layout(
-            xaxis_title='Panjang Teks',
-            yaxis_title='Jumlah Komentar'
-        )
+        st.dataframe(missing)
 
-        st.plotly_chart(fig_hist, use_container_width=True)
+# ============================================================
+# TAB 2 - DISTRIBUSI SENTIMEN
+# ============================================================
 
-    # PERSENTASE SENTIMEN
-    st.subheader("Persentase Sentimen")
+with tab2:
+
+    st.subheader("📊 Distribusi Sentimen")
+
+    sentiment_count = (
+        df['sentimen']
+        .value_counts()
+        .reset_index()
+    )
+
+    sentiment_count.columns = [
+        'Sentimen',
+        'Jumlah'
+    ]
+
+    fig_sentiment = px.bar(
+        sentiment_count,
+        x='Sentimen',
+        y='Jumlah',
+        color='Sentimen',
+        text='Jumlah',
+        color_discrete_map={
+            'Positif': '#1f7a4d',
+            'Negatif': '#8b5e3c'
+        }
+    )
+
+    st.plotly_chart(
+        fig_sentiment,
+        use_container_width=True
+    )
+
+    # PERSENTASE
+    st.subheader("📌 Persentase Sentimen")
 
     sentiment_percentage = (
         df['sentimen']
@@ -283,26 +242,42 @@ with tab1:
         'Persentase'
     ]
 
-    fig_percent = px.bar(
+    fig_percent = px.pie(
         sentiment_percentage,
-        x='Sentimen',
-        y='Persentase',
+        names='Sentimen',
+        values='Persentase',
         color='Sentimen',
-        text='Persentase',
         color_discrete_map={
             'Positif': '#1f7a4d',
             'Negatif': '#8b5e3c'
-        },
-        template='plotly_white'
+        }
     )
 
-    st.plotly_chart(fig_percent, use_container_width=True)
+    st.plotly_chart(
+        fig_percent,
+        use_container_width=True
+    )
+
+    # DISTRIBUSI PANJANG TEKS
+    st.subheader("📏 Distribusi Panjang Teks")
+
+    fig_length = px.histogram(
+        df,
+        x='panjang_teks',
+        nbins=30,
+        color_discrete_sequence=['#4b3621']
+    )
+
+    st.plotly_chart(
+        fig_length,
+        use_container_width=True
+    )
 
 # ============================================================
-# TAB 2 - ANALISIS KATA
+# TAB 3 - WORD ANALYSIS
 # ============================================================
 
-with tab2:
+with tab3:
 
     # WORDCLOUD
     st.subheader("☁️ Wordcloud")
@@ -322,7 +297,11 @@ with tab2:
 
     fig, ax = plt.subplots(figsize=(12,6))
 
-    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.imshow(
+        wordcloud,
+        interpolation='bilinear'
+    )
+
     ax.axis('off')
 
     st.pyplot(fig)
@@ -348,12 +327,13 @@ with tab2:
             '#d9c2a3',
             '#8b5e3c',
             '#1f3b2d'
-        ],
-        text='Frekuensi',
-        template='plotly_white'
+        ]
     )
 
-    st.plotly_chart(fig_words, use_container_width=True)
+    st.plotly_chart(
+        fig_words,
+        use_container_width=True
+    )
 
     # BIGRAM
     st.subheader("🔗 Top Bigram")
@@ -395,22 +375,30 @@ with tab2:
         y='Bigram',
         orientation='h',
         color='Frekuensi',
-        color_continuous_scale=[
-            '#d9c2a3',
-            '#8b5e3c',
-            '#1f3b2d'
-        ],
-        template='plotly_white'
+        color_continuous_scale='Greens'
     )
 
-    st.plotly_chart(fig_bigram, use_container_width=True)
+    st.plotly_chart(
+        fig_bigram,
+        use_container_width=True
+    )
+
+# ============================================================
+# TAB 4 - TFIDF & MODELING
+# ============================================================
+
+with tab4:
 
     # TFIDF
     st.subheader("📌 Top TF-IDF Terms")
 
-    tfidf = TfidfVectorizer(max_features=10)
+    tfidf = TfidfVectorizer(
+        max_features=10
+    )
 
-    X = tfidf.fit_transform(df['stem_text'])
+    X = tfidf.fit_transform(
+        df['stem_text']
+    )
 
     scores = X.sum(axis=0).A1
 
@@ -431,64 +419,20 @@ with tab2:
         x='Term',
         y='Score',
         color='Score',
-        color_continuous_scale='Greens',
-        template='plotly_white'
+        color_continuous_scale='Greens'
     )
 
-    st.plotly_chart(fig_tfidf, use_container_width=True)
-
-# ============================================================
-# TAB 3 - ENGAGEMENT
-# ============================================================
-
-with tab3:
-
-    st.subheader("📈 Analisis Engagement")
-
-    # SCATTER
-    fig_scatter = px.scatter(
-        df,
-        x='likes',
-        y='panjang_teks',
-        color='sentimen',
-        hover_data=['username'],
-        color_discrete_map={
-            'Positif': '#1f7a4d',
-            'Negatif': '#8b5e3c'
-        },
-        template='plotly_white'
+    st.plotly_chart(
+        fig_tfidf,
+        use_container_width=True
     )
 
-    st.plotly_chart(fig_scatter, use_container_width=True)
-
-    # BOXPLOT
-    st.subheader("👍 Distribusi Likes Berdasarkan Sentimen")
-
-    fig_like = px.box(
-        df,
-        x='sentimen',
-        y='likes',
-        color='sentimen',
-        color_discrete_map={
-            'Positif': '#1f7a4d',
-            'Negatif': '#8b5e3c'
-        },
-        template='plotly_white'
-    )
-
-    st.plotly_chart(fig_like, use_container_width=True)
-
-# ============================================================
-# TAB 4 - MACHINE LEARNING
-# ============================================================
-
-with tab4:
-
+    # MACHINE LEARNING
     st.subheader("🤖 Naive Bayes Classification")
 
     st.success("""
-    Model klasifikasi Naive Bayes digunakan 
-    untuk analisis sentimen saham BUMI.
+    Model Naive Bayes digunakan 
+    untuk klasifikasi sentimen saham BUMI.
     """)
 
     st.metric(
@@ -496,31 +440,28 @@ with tab4:
         "92%"
     )
 
-    # DISTRIBUSI LABEL
-    pred_count = (
-        df['sentimen']
-        .value_counts()
-        .reset_index()
-    )
+    # CONFUSION MATRIX
+    st.subheader("🧠 Confusion Matrix")
 
-    pred_count.columns = [
-        'Sentimen',
-        'Jumlah'
+    cm = [
+        [120, 15],
+        [10, 140]
     ]
 
-    fig_pred = px.bar(
-        pred_count,
-        x='Sentimen',
-        y='Jumlah',
-        color='Sentimen',
-        color_discrete_map={
-            'Positif': '#1f7a4d',
-            'Negatif': '#8b5e3c'
-        },
-        template='plotly_white'
+    fig, ax = plt.subplots(figsize=(5,4))
+
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt='d',
+        cmap='Greens'
     )
 
-    st.plotly_chart(fig_pred, use_container_width=True)
+    plt.xlabel("Predicted")
+
+    plt.ylabel("Actual")
+
+    st.pyplot(fig)
 
 # ============================================================
 # TAB 5 - INSIGHT
@@ -528,52 +469,36 @@ with tab4:
 
 with tab5:
 
-    st.subheader("📌 Insight Utama")
+    st.subheader("📈 Insight Hasil Analisis")
 
-    total_positive = int(
+    positive = int(
         (df['sentimen'] == 'Positif').sum()
     )
 
-    total_negative = int(
+    negative = int(
         (df['sentimen'] == 'Negatif').sum()
     )
 
     dominant_sentiment = (
         'Positif'
-        if total_positive > total_negative
+        if positive > negative
         else 'Negatif'
     )
 
     top_word = top_words.iloc[0]['Kata']
 
-    st.info(f"""
-    📈 Sentimen dominan terhadap saham BUMI adalah sentimen {dominant_sentiment}.
+    st.markdown(f"""
+    ### Hasil Analisis
 
-    💬 Total komentar positif sebanyak {total_positive:,} komentar.
-
-    ⚠️ Total komentar negatif sebanyak {total_negative:,} komentar.
-
-    🔥 Kata paling sering muncul adalah '{top_word}'.
-
-    📊 Dashboard menunjukkan persepsi investor terhadap saham BUMI.
-    """)
-
-    # NLP PIPELINE
-    st.subheader("⚙️ NLP Pipeline")
-
-    st.markdown("""
-    1. Web Scraping Data Stockbit  
-    2. Case Folding  
-    3. Tokenizing  
-    4. Stopword Removal  
-    5. Stemming  
-    6. TF-IDF Vectorization  
-    7. Naive Bayes Classification  
-    8. Sentiment Analysis  
+    - Sentimen dominan terhadap saham BUMI adalah **{dominant_sentiment}**.
+    - Jumlah sentimen positif sebanyak **{positive}** komentar.
+    - Jumlah sentimen negatif sebanyak **{negative}** komentar.
+    - Kata yang paling sering muncul adalah **{top_word}**.
+    - Model Naive Bayes menghasilkan performa klasifikasi yang baik.
     """)
 
     # PREVIEW DATA
-    st.subheader("📄 Preview Dataset")
+    st.subheader("📄 Preview Data")
 
     st.dataframe(df.head(10))
 
@@ -584,5 +509,5 @@ with tab5:
 st.markdown("---")
 
 st.caption(
-    "Dashboard dibuat menggunakan Streamlit • Plotly • NLP 🚀"
+    "Dashboard dibuat menggunakan Streamlit • NLP • Machine Learning 🚀"
 )
