@@ -4,3 +4,4 @@ plotly
 matplotlib
 wordcloud
 numpy
+scikit-learn
